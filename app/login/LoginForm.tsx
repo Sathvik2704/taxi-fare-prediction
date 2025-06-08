@@ -1,6 +1,6 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter} from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,29 +12,17 @@ import { FaGoogle, FaFacebook } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-export default function LoginForm() {
+
+function SocialLoginHandler({ setError }: { setError: (msg: string) => void }) {
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-
-  return <div>Error: {error}</div>;
-}
-
-export default function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const router = useRouter();
-  const { login, socialLogin } = useAuth();
-  const searchParams = useSearchParams();
+  const { socialLogin } = useAuth();
 
   useEffect(() => {
     const userParam = searchParams.get("user");
     if (userParam) {
       try {
         const userObj = JSON.parse(decodeURIComponent(userParam));
-        // Save user info to your auth context/localStorage
         socialLogin(userObj.provider || "OAuth", {
           name: userObj.displayName || userObj.name,
           email: userObj.emails?.[0]?.value || userObj.email,
@@ -45,7 +33,19 @@ export default function LoginForm() {
         setError("OAuth login failed");
       }
     }
-  }, [searchParams]);
+  }, [searchParams, router, socialLogin, setError]);
+
+  return null;
+}
+
+export default function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const router = useRouter();
+  const { login, socialLogin } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,6 +202,9 @@ export default function LoginForm() {
           </div>
         </div>
       </div>
+      <Suspense>
+        <SocialLoginHandler setError={setError} />
+      </Suspense>
     </main>
   );
 } 
