@@ -1,8 +1,8 @@
 "use client";
-
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter} from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaxiAnimation } from "@/components/taxi-animation";
@@ -12,6 +12,12 @@ import { FaGoogle, FaFacebook } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+export default function LoginForm() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+
+  return <div>Error: {error}</div>;
+}
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
