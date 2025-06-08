@@ -30,7 +30,7 @@ function GoogleMapsSearchModal({ open, onClose }: { open: boolean, onClose: () =
     // Load Google Maps script if not already loaded
     if (!window.google) {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyApGbX_si9AcZoEj3SllfX1B1ubYpZP0fc&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}&libraries=places`;
       script.async = true;
       script.onload = () => setScriptLoaded(true);
       document.body.appendChild(script);

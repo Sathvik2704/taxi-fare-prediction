@@ -24,7 +24,7 @@ export function MapPreview({ origin, destination }: MapPreviewProps) {
     if (!origin || !destination) return
 
     const loader = new Loader({
-      apiKey: "AIzaSyApGbX_si9AcZoEj3SllfX1B1ubYpZP0fc",
+      apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
       version: "weekly",
       libraries: ["places"],
     })

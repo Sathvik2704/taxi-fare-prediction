@@ -1,6 +1,6 @@
 "use server"
 
-const GOOGLE_API_KEY = "AIzaSyApGbX_si9AcZoEj3SllfX1B1ubYpZP0fc"
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export async function calculateDistance(origin: string, destination: string): Promise<number> {
   try {
