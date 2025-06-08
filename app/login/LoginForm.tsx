@@ -202,7 +202,7 @@ export default function LoginForm() {
           </div>
         </div>
       </div>
-      <Suspense>
+      <Suspense fallback={null}>
         <SocialLoginHandler setError={setError} />
       </Suspense>
     </main>
