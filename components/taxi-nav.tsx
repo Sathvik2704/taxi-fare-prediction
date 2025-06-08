@@ -18,7 +18,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { useToast } from "@/components/ui/use-toast"
 import { Textarea } from "@/components/ui/textarea"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function GoogleMapsSearchModal({ open, onClose }: { open: boolean, onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);

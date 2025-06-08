@@ -62,7 +62,7 @@ const vehicleTypes: Record<VehicleType, VehicleInfo> = {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export function TaxiFareForm() {
   const [isLoading, setIsLoading] = useState(false)
