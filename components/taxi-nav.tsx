@@ -117,7 +117,10 @@ export function TaxiNav() {
     async function pollMessages() {
       while (polling) {
         try {
-          const res = await fetch(`${API_URL}/user/messages?user=${encodeURIComponent(user.email)}`);
+          const userEmail = user?.email; // Safely access email
+          if (!userEmail) break; // Exit if email is not available
+          
+          const res = await fetch(`${API_URL}/user/messages?user=${encodeURIComponent(userEmail)}`);
           if (res.ok) {
             const messages = await res.json();
             for (const msg of messages) {
@@ -199,21 +202,63 @@ export function TaxiNav() {
                     return;
                   }
                   setSubmitting(true);
+                  
+                  // Get the API URL with fallback
+                  const apiUrl = API_URL || 'http://localhost:4000';
+                  console.log("Submitting feedback to:", apiUrl);
+                  
+                  const feedbackData = {
+                    user: user?.email || "anonymous",
+                    feedback: feedback
+                  };
+                  console.log("Feedback data:", feedbackData);
+                  
                   try {
-                    const res = await fetch(`${API_URL}/feedback`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ user: user?.email || "anonymous", feedback })
-                    });
-                    if (res.ok) {
-                      toast({ title: "Thank you!", description: "Your feedback has been submitted." });
-                      setFeedback("");
-                      setFeedbackOpen(false);
-                    } else {
-                      toast({ title: "Error", description: "Failed to submit feedback.", variant: "destructive" });
+                    // Try up to 3 times with a small delay between attempts
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                      try {
+                        const res = await fetch(`${apiUrl}/feedback`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify(feedbackData)
+                        });
+                        
+                        if (res.ok) {
+                          console.log("Feedback submitted successfully");
+                          toast({ title: "Thank you!", description: "Your feedback has been submitted." });
+                          setFeedback("");
+                          setFeedbackOpen(false);
+                          return;
+                        } else {
+                          console.error("Feedback submission error:", res.status, await res.text());
+                          if (attempt < 3) {
+                            console.log(`Retrying feedback submission (attempt ${attempt + 1})`);
+                            await new Promise(r => setTimeout(r, 1000)); // Wait 1 second before retry
+                          }
+                        }
+                      } catch (e) {
+                        console.error(`Feedback submission attempt ${attempt} failed:`, e);
+                        if (attempt < 3) {
+                          await new Promise(r => setTimeout(r, 1000)); // Wait 1 second before retry
+                        }
+                      }
                     }
+                    
+                    // All attempts failed
+                    toast({
+                      title: "Error",
+                      description: "Failed to submit feedback after multiple attempts. Please try again later.",
+                      variant: "destructive"
+                    });
                   } catch (e) {
-                    toast({ title: "Error", description: "Could not connect to server.", variant: "destructive" });
+                    console.error("Feedback submission error:", e);
+                    toast({
+                      title: "Error",
+                      description: "Could not connect to server. Please check your connection and try again.",
+                      variant: "destructive"
+                    });
                   } finally {
                     setSubmitting(false);
                   }

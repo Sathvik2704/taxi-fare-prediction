@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import Link from "next/link";
+import { FaLocationArrow, FaMapMarkerAlt } from "react-icons/fa";
 
 // Types for feedback and search history
 interface FeedbackEntry {
@@ -18,8 +19,12 @@ interface FeedbackEntry {
   feedback: string;
   date: string;
 }
-interface SearchEntry {
-  search: string;
+
+interface SearchHistoryEntry {
+  _id: string;
+  user: string;
+  pickup: string;
+  dropoff: string;
   date: string;
 }
 
@@ -31,7 +36,7 @@ export default function AdminDashboard() {
   const [feedbacks, setFeedbacks] = useState<FeedbackEntry[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [users, setUsers] = useState<any[]>([]);
-  const [searchHistories, setSearchHistories] = useState<Record<string, SearchEntry[]>>({});
+  const [searchHistories, setSearchHistories] = useState<SearchHistoryEntry[]>([]);
   const [messageUser, setMessageUser] = useState("");
   const [message, setMessage] = useState("");
   const [messageStatus, setMessageStatus] = useState("");
@@ -66,6 +71,19 @@ export default function AdminDashboard() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+    
+    // Development mode quick login
+    if (process.env.NODE_ENV !== "production" && 
+        email === "sathwik272004@gmail.com" && 
+        password === "sathvik123") {
+      const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNhdGh3aWsyNzIwMDRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzEyNDE3NjAwLCJleHAiOjE3OTk5MDY0MDB9.ZXzXNzLyJgIrsA_7WHVi7mYiKwgUIFtj9V1Gw73KSSM";
+      localStorage.setItem("admin-token", mockToken);
+      setToken(mockToken);
+      setIsAdmin(true);
+      toast({ title: "Admin login successful (dev mode)" });
+      return;
+    }
+    
     try {
       const res = await fetch(`${API_URL}/admin/login`, {
         method: "POST",
@@ -93,19 +111,35 @@ export default function AdminDashboard() {
       return;
     }
     setIsAdmin(true);
+    
+    // Fetch feedbacks
     fetch(`${API_URL}/admin/feedback`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(setFeedbacks);
+      .then(data => {
+        if (Array.isArray(data)) {
+          setFeedbacks(data);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching feedback:", err);
+      });
+    
+    // Fetch users and search history
     fetch(`${API_URL}/admin/users`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
-        setUserCount(data.userCount);
-        setUsers(data.users);
-        setSearchHistories(data.searchHistories);
+        if (data) {
+          setUserCount(data.userCount || 0);
+          setUsers(data.users || []);
+          setSearchHistories(data.searchHistories || []);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching users:", err);
       });
   }, [token]);
 
@@ -118,6 +152,18 @@ export default function AdminDashboard() {
     setMessageStatus("");
     try {
       const token = localStorage.getItem("admin-token");
+      
+      // Development mode handling
+      if (process.env.NODE_ENV !== "production" && 
+          token === "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InNhdGh3aWsyNzIwMDRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzEyNDE3NjAwLCJleHAiOjE3OTk5MDY0MDB9.ZXzXNzLyJgIrsA_7WHVi7mYiKwgUIFtj9V1Gw73KSSM") {
+        console.log("Development mode - message would be sent to:", messageUser);
+        console.log("Message content:", message);
+        setMessageStatus("Message sent! (Development mode)");
+        setMessage("");
+        setMessageUser("");
+        return;
+      }
+      
       const res = await fetch(`${API_URL}/send-message`, {
         method: "POST",
         headers: {
@@ -151,7 +197,7 @@ export default function AdminDashboard() {
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
       <div className="mb-6 flex justify-end">
         <Link href="/">
-          <Button className="bg-green-600 hover:bg-green-700 text-white">View Prediction</Button>
+          <Button className="bg-green-600 hover:bg-green-700 text-white">Home</Button>
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -169,9 +215,10 @@ export default function AdminDashboard() {
             ))}
           </div>
         </Card>
-        {/* Users and Search History */}
+
+        {/* Search History */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Users & Search History</h2>
+          <h2 className="text-xl font-semibold mb-4">Search History</h2>
           <div className="mb-2">Total Users: <span className="font-bold">{userCount}</span></div>
           <div className="mb-4">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by user:</label>
@@ -181,38 +228,52 @@ export default function AdminDashboard() {
               onChange={e => setSelectedUser(e.target.value)}
             >
               <option value="">All Users</option>
-              {userEmails.map(email => (
-                <option key={email} value={email}>{email}</option>
+              {users.map(user => (
+                <option key={user.email} value={user.email}>{user.email}</option>
               ))}
             </select>
           </div>
-          <div className="overflow-x-auto max-h-64">
-            <table className="min-w-full text-sm border">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="px-2 py-1 border">User Email</th>
-                  <th className="px-2 py-1 border">Search</th>
-                  <th className="px-2 py-1 border">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userEmails
-                  .filter(email => !selectedUser || email === selectedUser)
-                  .map(email =>
-                    (Array.isArray(searchHistories[email]) ? searchHistories[email] : []).map((s, idx) => (
-                      <tr key={email + idx}>
-                        <td className="px-2 py-1 border align-top">{email}</td>
-                        <td className="px-2 py-1 border align-top">{s.search}</td>
-                        <td className="px-2 py-1 border align-top">{new Date(s.date).toLocaleString()}</td>
-                      </tr>
-                    ))
-                  )}
-              </tbody>
-            </table>
-            {userEmails.length === 0 && <div>No search history yet.</div>}
+          <div className="overflow-y-auto max-h-96">
+            {searchHistories.length === 0 ? (
+              <div>No search history yet.</div>
+            ) : (
+              <div className="space-y-4">
+                {searchHistories
+                  .filter(search => !selectedUser || search.user === selectedUser)
+                  .map((search) => (
+                    <div key={search._id} className="border rounded p-3 bg-white">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium text-sm text-gray-500">
+                          {search.user}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {new Date(search.date).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <FaLocationArrow className="mt-1 text-green-600 min-w-[16px]" />
+                          <div>
+                            <div className="text-sm text-gray-500">Pickup</div>
+                            <div>{search.pickup}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <FaMapMarkerAlt className="mt-1 text-red-600 min-w-[16px]" />
+                          <div>
+                            <div className="text-sm text-gray-500">Dropoff</div>
+                            <div>{search.dropoff}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </Card>
       </div>
+
       {/* Send Message to User */}
       <Card className="p-6 mt-8 max-w-lg">
         <h2 className="text-xl font-semibold mb-4">Send Message to User</h2>

@@ -161,22 +161,9 @@ export async function calculateDistance(origin: string, destination: string): Pr
 
   if (!location1 || !location2) {
     console.warn("Could not match locations in India. Returning fallback of ~10 km.")
-    return 10 + Math.round(Math.random() * 5)
+    return 10
   }
-
-  // If same city but different landmarks
-  if (location1.type === "landmark" && 
-      location2.type === "landmark" && 
-      location1.city === location2.city) {
-    // Within city distance (1-15 km)
-    return 1 + Math.round(Math.random() * 14) 
-  }
-
-  // If same exact location
-  if (location1.name === location2.name && location1.type === location2.type) {
-    return 1 + Math.round(Math.random() * 4) // 1-5 km for minimum fare
-  }
-
+  
   const toRad = (val: number) => (val * Math.PI) / 180
 
   const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -188,6 +175,25 @@ export async function calculateDistance(origin: string, destination: string): Pr
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     return R * c
+  }
+
+  // If same city but different landmarks
+  if (location1.type === "landmark" && 
+      location2.type === "landmark" && 
+      location1.city === location2.city) {
+    // Calculate actual distance using Haversine formula
+    const calculatedDistance = haversineDistance(
+      location1.lat, location1.lng, 
+      location2.lat, location2.lng
+    ) * 1.3; // Road factor multiplier
+    
+    // Return the calculated distance with one decimal point precision
+    return Math.max(2, Math.round(calculatedDistance * 10) / 10);
+  }
+
+  // If same exact location
+  if (location1.name === location2.name && location1.type === location2.type) {
+    return 1.5; // Minimum fare distance
   }
 
   // Apply a road factor multiplier to account for non-direct routes

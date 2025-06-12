@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { useRouter } from "next/navigation"
 import Cookies from "js-cookie"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 // Define user type
 interface User {
   id: string
@@ -18,7 +20,7 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<boolean>
   socialLogin: (provider: string, userData: any) => Promise<boolean>
-  register: (name: string, email: string, password: string) => Promise<boolean>
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>
   logout: () => void
 }
 
@@ -28,19 +30,9 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => false,
   socialLogin: async () => false,
-  register: async () => false,
+  register: async () => ({ success: false, message: 'Auth context not initialized' }),
   logout: () => {},
 })
-
-// Mock database for demo purposes (would use real DB in production)
-let users: { id: string; name: string; email: string; password: string; provider?: string }[] = [
-  {
-    id: "1",
-    name: "Test User",
-    email: "test@example.com",
-    password: "password123",
-  },
-]
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
@@ -50,7 +42,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Check for existing session on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("taxi-user")
-    if (storedUser) {
+    const token = localStorage.getItem("auth-token")
+    
+    if (storedUser && token) {
       try {
         const parsedUser = JSON.parse(storedUser)
         setUser(parsedUser)
@@ -58,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Failed to parse stored user", error)
         localStorage.removeItem("taxi-user")
+        localStorage.removeItem("auth-token")
       }
     }
     setLoading(false)
@@ -66,94 +61,124 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Find user with matching email
-      const foundUser = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      )
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important for cookies and sessions
+      });
 
-      if (foundUser) {
-        // Create user object without password
-        const { password: _, ...userWithoutPassword } = foundUser
-        
-        // Set user in state and local storage
-        setUser(userWithoutPassword)
-        localStorage.setItem("taxi-user", JSON.stringify(userWithoutPassword))
-        Cookies.set("auth-status", "authenticated", { expires: 7 })
-        
-        return true
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Login failed');
+      }
+
+      const data = await response.json();
+      
+      if (!data.token) {
+        throw new Error('No token received from server');
       }
       
-      return false
+      // Store token and user data
+      localStorage.setItem("auth-token", data.token);
+      localStorage.setItem("taxi-user", JSON.stringify(data.user));
+      Cookies.set("auth-status", "authenticated", { expires: 7 });
+      
+      setUser(data.user);
+      return true;
     } catch (error) {
-      console.error("Login failed", error)
-      return false
+      console.error("Login failed", error);
+      return false;
     }
   }
 
   // Social login function
   const socialLogin = async (provider: string, userData: any): Promise<boolean> => {
     try {
-      // Check if user already exists with this email
-      let existingUser = users.find(
-        (u) => u.email.toLowerCase() === userData.email.toLowerCase()
-      )
-
-      if (!existingUser) {
-        // Create new user if not exists
-        const newUser = {
-          id: `${users.length + 1}`,
-          name: userData.name,
-          email: userData.email,
-          password: "", // No password for social logins
-          provider,
-        }
-        users.push(newUser)
-        existingUser = newUser
+      console.log(`Social login attempt with ${provider}:`, userData);
+      
+      if (!userData || !userData.email) {
+        console.error("Invalid user data for social login:", userData);
+        return false;
       }
 
-      // Create user object without password
-      const { password: _, ...userWithoutPassword } = existingUser
+      // Store user data from social login
+      const user = {
+        id: userData.id || `social_${Date.now()}`,
+        name: userData.name || userData.displayName || "Social User",
+        email: userData.email,
+        provider,
+      };
       
       // Set user in state and local storage
-      setUser(userWithoutPassword)
-      localStorage.setItem("taxi-user", JSON.stringify(userWithoutPassword))
-      Cookies.set("auth-status", "authenticated", { expires: 7 })
+      setUser(user);
+      localStorage.setItem("taxi-user", JSON.stringify(user));
+      Cookies.set("auth-status", "authenticated", { expires: 7 });
       
-      return true
+      console.log("Social login successful:", user);
+      return true;
     } catch (error) {
-      console.error(`${provider} login failed`, error)
-      return false
+      console.error(`${provider} login failed:`, error);
+      return false;
     }
-  }
+  };
 
   // Register function
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      // Check if email already exists
-      const existingUser = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase()
-      )
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, displayName: name }),
+        credentials: 'include' // Important for cookies
+      });
 
-      if (existingUser) {
-        alert("Email already registered")
-        return false
+      if (!response.ok) {
+        const errorData = await response.json();
+        // Return specific error message from server
+        return { 
+          success: false, 
+          message: errorData.error || 'Registration failed. Please try again.' 
+        };
       }
 
-      // Create new user
-      const newUser = {
-        id: `${users.length + 1}`,
-        name,
-        email,
-        password,
+      // After successful registration, immediately log the user in
+      const loginResponse = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Important for cookies
+      });
+
+      if (!loginResponse.ok) {
+        // Registration succeeded but auto-login failed
+        return { 
+          success: true, 
+          message: 'Registration successful! Please log in with your new credentials.'
+        };
       }
 
-      // Add to users array (would be DB insert in real app)
-      users.push(newUser)
-
-      return true
+      const data = await loginResponse.json();
+      
+      // Store token and user data
+      localStorage.setItem("auth-token", data.token);
+      localStorage.setItem("taxi-user", JSON.stringify(data.user));
+      Cookies.set("auth-status", "authenticated", { expires: 7 });
+      
+      setUser(data.user);
+      return { success: true };
     } catch (error) {
-      console.error("Registration failed", error)
-      return false
+      console.error("Registration failed:", error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'An unexpected error occurred during registration.'
+      };
     }
   }
 
@@ -161,6 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null)
     localStorage.removeItem("taxi-user")
+    localStorage.removeItem("auth-token")
     Cookies.remove("auth-status")
     router.push("/login")
   }

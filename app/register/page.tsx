@@ -21,7 +21,7 @@ export default function Register() {
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { register, socialLogin } = useAuth()
+  const { register, socialLogin, login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,14 +35,27 @@ export default function Register() {
     setLoading(true)
     
     try {
-      const success = await register(name, email, password)
+      const result = await register(name, email, password)
       
-      if (success) {
-        router.push("/login")
+      if (result.success) {
+        // Try to log in the user automatically after successful registration
+        const loginSuccess = await login(email, password)
+        
+        if (loginSuccess) {
+          // Redirect to home page if auto-login was successful
+          router.push("/")
+        } else {
+          // If auto-login fails but registration was successful
+          setError(result.message || 'Registration successful! Please log in with your new credentials.')
+          router.push("/login")
+        }
+      } else {
+        // Show specific error message from registration
+        setError(result.message || 'Registration failed. Please try again.')
       }
     } catch (err) {
       console.error(err)
-      setError("Registration failed. Please try again.")
+      setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
