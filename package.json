@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "railway:build": "npm run build",
-    "railway:start": "node server.js"
+    "railway:start": "node server.js",
+    "postinstall": "npm run build"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
