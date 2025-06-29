@@ -1,53 +1,48 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "../lib/auth-context"
+import { useEffect, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 
 export function SocialLoginHandler({ setError }: { setError: (error: string) => void }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { socialLogin } = useAuth()
+  const processedRef = useRef(false)
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const userParam = urlParams.get('user')
-    const state = urlParams.get('state')
+    const userParam = searchParams.get("user")
+    
+    if (userParam && !processedRef.current) {
+      processedRef.current = true
 
-    if (userParam && state) {
       try {
-        // Verify state matches the one we set in the cookie
-        const storedState = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('oauth_state='))
-          ?.split('=')[1]
+        const userObj = JSON.parse(decodeURIComponent(userParam))
+        
+        // Clean up URL
+        const url = new URL(window.location.href)
+        url.searchParams.delete("user")
+        window.history.replaceState({}, document.title, url.toString())
 
-        if (storedState !== state) {
-          setError('OAuth state mismatch')
-          return
-        }
-
-        const userData = JSON.parse(decodeURIComponent(userParam))
-        socialLogin('Google', userData)
+        socialLogin(userObj.provider || "Google", userObj)
           .then(success => {
             if (success) {
-              router.push('/')
+              // Redirect on success
+              router.push("/")
             } else {
-              setError('Social login failed')
+              setError("Failed to process social login. Please try again.")
             }
           })
-          .catch(error => {
-            setError(error instanceof Error ? error.message : 'An error occurred during social login')
+          .catch(err => {
+            console.error("Error during social login:", err)
+            setError("An unexpected error occurred during social login.")
           })
-          .finally(() => {
-            // Clean up URL parameters
-            const newUrl = window.location.origin + window.location.pathname
-            window.history.replaceState({}, '', newUrl)
-          })
-      } catch (error) {
-        setError('Invalid user data')
+      } catch (e) {
+        console.error("OAuth data parsing error:", e)
+        setError("Could not process login data from provider.")
       }
     }
-  }, [setError, router, socialLogin])
+  }, [searchParams, router, socialLogin, setError])
 
   return null
 }

@@ -10,10 +10,10 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from 
 import { Button } from "@/components/ui/button"
 import { jwtDecode } from "jwt-decode"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
 export default function Home() {
-  const { user, loading } = useAuth()
+  const { user, loading, authenticatedFetch } = useAuth()
   const router = useRouter()
   const [responsesOpen, setResponsesOpen] = useState(false);
   const [adminResponses, setAdminResponses] = useState<any[]>([]);
@@ -103,12 +103,17 @@ export default function Home() {
                     setLoadingResponses(true);
                     setResponsesOpen(true);
                     try {
-                      const res = await fetch(`${API_URL}/user/admin-responses?user=${encodeURIComponent(user.email)}`);
+                      const res = await authenticatedFetch(`${API_URL}/user/admin-responses`);
                       if (res.ok) {
-                        setAdminResponses(await res.json());
+                        const data = await res.json();
+                        setAdminResponses(data);
                       } else {
+                        console.error('Failed to fetch admin responses:', res.status);
                         setAdminResponses([]);
                       }
+                    } catch (error) {
+                      console.error('Error fetching admin responses:', error);
+                      setAdminResponses([]);
                     } finally {
                       setLoadingResponses(false);
                     }
@@ -165,11 +170,11 @@ export default function Home() {
 
           {/* About Section */}
           <div className="space-y-2 animate-fade-in mt-10">
-            <h2 className="text-2xl font-bold text-gray-900">About This Website</h2>
-            <p className="mx-auto max-w-[700px] text-gray-600 md:text-lg">
-              India Taxi Fare is your one-stop solution for estimating taxi fares across major Indian cities. Whether you're planning a trip, comparing prices, or just curious, our platform provides quick and accurate fare predictions based on real-world data. Enjoy a seamless experience, easy booking, and discover the best way to travel in India!
-            </p>
-          </div>
+  <h2 className="text-2xl font-bold text-gray-900">About This Website</h2>
+  <p className="mx-auto max-w-[700px] text-gray-600 md:text-lg">
+    India Taxi Fare is your one-stop solution for estimating taxi fares across major Indian cities. Whether you're planning a trip, comparing prices, or just curious, our platform provides quick and accurate fare predictions based on real-world data. Enjoy a seamless experience, easy booking, and discover the best way to travel in India!
+  </p>
+</div>
         </div>
       </div>
     </main>

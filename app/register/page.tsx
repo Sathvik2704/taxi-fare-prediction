@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { TaxiAnimation } from "@/components/taxi-animation"
 import { TaxiNav } from "@/components/taxi-nav"
 import { useAuth } from "@/lib/auth-context"
-import { FaGoogle, FaFacebook } from "react-icons/fa"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Register() {
   const [name, setName] = useState("")
@@ -18,10 +18,10 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [socialLoading, setSocialLoading] = useState<string | null>(null)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { register, socialLogin, login } = useAuth()
+  const { register, login } = useAuth()
+  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +46,11 @@ export default function Register() {
           router.push("/")
         } else {
           // If auto-login fails but registration was successful
+          toast({
+            title: "Registration Successful!",
+            description: "Your account has been created. Please log in with your new credentials.",
+            variant: "default",
+          });
           setError(result.message || 'Registration successful! Please log in with your new credentials.')
           router.push("/login")
         }
@@ -58,32 +63,6 @@ export default function Register() {
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
-    }
-  }
-  
-  const handleSocialLogin = async (provider: string) => {
-    setSocialLoading(provider)
-    
-    try {
-      // In a real implementation, this would use OAuth flow
-      // For demo, we're simulating social login with mock data
-      const mockUserData = {
-        name: `${provider} User`,
-        email: `${provider.toLowerCase()}user@example.com`,
-      }
-      
-      const success = await socialLogin(provider, mockUserData)
-      
-      if (success) {
-        router.push("/")
-      } else {
-        setError(`${provider} registration failed`)
-      }
-    } catch (err) {
-      console.error(err)
-      setError(`An error occurred during ${provider} registration`)
-    } finally {
-      setSocialLoading(null)
     }
   }
 
@@ -200,36 +179,6 @@ export default function Register() {
               >
                 {loading ? "Creating Account..." : "Create Account"}
               </Button>
-              
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or sign up with</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  onClick={() => handleSocialLogin("Google")}
-                  disabled={socialLoading !== null}
-                  className="flex items-center justify-center gap-2 bg-white text-gray-800 border border-gray-300 hover:bg-gray-50"
-                >
-                  <FaGoogle className="text-red-500" />
-                  <span>{socialLoading === "Google" ? "Loading..." : "Google"}</span>
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleSocialLogin("Facebook")}
-                  disabled={socialLoading !== null}
-                  className="flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  <FaFacebook />
-                  <span>{socialLoading === "Facebook" ? "Loading..." : "Facebook"}</span>
-                </Button>
-              </div>
               
               <div className="text-center text-sm text-gray-500">
                 Already have an account?{" "}

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: taxi-fare-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://taxi-fare-backend.onrender.com
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: taxi-fare-backend
+    env: node
+    buildCommand: cd auth-backend && npm install
+    startCommand: cd auth-backend && npm start
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false 
